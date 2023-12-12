@@ -1,6 +1,11 @@
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName='UpdateVersions')]
 param (
+  [Parameter(ParameterSetName='UpdateVersions')]
   [string] $language = "all",
+
+  [Parameter(ParameterSetName='UpdateDeprecation')]
+  [switch] $updateDeprecation,
+
   [string] $github_pat = $env:GITHUB_PAT,
   [string] $nuget_pat = $env:NUGET_PAT,
   [boolean] $updateDeprecated = $false
@@ -564,58 +569,65 @@ function Write-Nuget-Deprecated-Packages($packageList)
   }
 }
 
-switch($language)
-{
-  "all" {
-    Write-Latest-Versions "js"
-    Write-Latest-Versions "dotnet"
-    Write-Latest-Versions "python"
-    Write-Latest-Versions "cpp"
-    Write-Latest-Versions "go"
+if ($PSCmdlet.ParameterSetName -eq 'UpdateVersions') {
+  switch($language)
+  {
+    "all" {
+      Write-Latest-Versions "js"
+      Write-Latest-Versions "dotnet"
+      Write-Latest-Versions "python"
+      Write-Latest-Versions "cpp"
+      Write-Latest-Versions "go"
 
-    # Maven search api has lots of reliability issues so keeping this error 
-    # handling here to keep it from failing the pipeline all the time.
-    try {
-      Write-Latest-Versions "java"
-      Write-Latest-Versions "android"
+      # Maven search api has lots of reliability issues so keeping this error
+      # handling here to keep it from failing the pipeline all the time.
+      try {
+        Write-Latest-Versions "java"
+        Write-Latest-Versions "android"
+      }
+      catch {
+        Write-Host "Exception: $_"
+        Write-Host "Maven search appears to be down currently, so
+        java and android updates might not complete successfully. See https://status.maven.org/ for current status."
+      }
+      break
     }
-    catch { 
-      Write-Host "Exception: $_"
-      Write-Host "Maven search appears to be down currently, so java and android updates might not complete successfully. See https://status.maven.org/ for current status."
+    "java" {
+      Write-Latest-Versions $language
+      break
     }
-    break
-  }
-  "java" {
-    Write-Latest-Versions $language
-    break
-  }
-  "js" {
-    Write-Latest-Versions $language
-    break
-  }
-  "dotnet" {
-    Write-Latest-Versions $language
-    break
-  }
-  "python" {
-    Write-Latest-Versions $language
-    break
-  }
-  "cpp" {
-    Write-Latest-Versions $language
-    break
-  }
-  "go" {
-    Write-Latest-Versions $language
-    break
-  }
-  "android" {
-    Write-Latest-Versions $language
-    break
-  }
-  default {
-    Write-Host "Unrecognized Language: $language"
-    exit 1
+    "js" {
+      Write-Latest-Versions $language
+      break
+    }
+    "dotnet" {
+      Write-Latest-Versions $language
+      break
+    }
+    "python" {
+      Write-Latest-Versions $language
+      break
+    }
+    "cpp" {
+      Write-Latest-Versions $language
+      break
+    }
+    "go" {
+      Write-Latest-Versions $language
+      break
+    }
+    "android" {
+      Write-Latest-Versions $language
+      break
+    }
+    default {
+      Write-Host "Unrecognized Language: $language"
+      exit 1
+    }
   }
 }
-
+elseif ($PSCmdlet.ParameterSetName -eq 'UpdateDeprecation') {
+  $packageList = Get-PackageListForLanguage "dotnet"
+  if ($null -eq $packageList) { $packageList = @() }
+  Write-Nuget-Deprecated-Packages $packageList
+}
